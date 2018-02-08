@@ -9,7 +9,7 @@ Shufflevector instruction of LLVM IR provides powerful expressiveness. However, 
 In the [project page](http://parabix.costar.sfu.ca/wiki/ShufflePatternLibrary#StandardPatternExamples), there are some patterns identified already. We firstly want to start off by implementing most of them. For example, a rotate operation can be expressed as
 
 ```llvm
-shufflevector <4 x i32> %x, <4 x i32> unfef, <4 x i32> <i32 3, i32 0, i32 1, i32 2>
+shufflevector <4 x i32> %x, <4 x i32> undef, <4 x i32> <i32 3, i32 0, i32 1, i32 2>
 ```
 
 ## Systematic Approach
@@ -49,7 +49,7 @@ for (auto& instruction : basicBlock) {
 Sometimes, patterns might appear in lanes of a vector:
 
 ```llvm
-shufflevector <8 x i32> %x, <4 x i32> unfef, <8 x i32> <i32 3, i32 0, i32 1, i32 2, i32 7, i32 4, i32 5, i32 6>
+shufflevector <8 x i32> %x, <8 x i32> undef, <8 x i32> <i32 3, i32 0, i32 1, i32 2, i32 7, i32 4, i32 5, i32 6>
 ```
 
 In this example, the instruction is essentially performing two rotate operations on two lanes.
@@ -61,7 +61,7 @@ We want to incorporate this idea into all pattern recognitions.
 Consider this example:
 
 ```llvm
-shufflevector <8 x i32> %x, <4 x i32> zeroinitializer, <8 x i32> <i32 3, i32 0, i32 1, i32 2, i32 7, i32 4, i32 5, i32 6>
+shufflevector <8 x i32> %x, <8 x i32> zeroinitializer, <8 x i32> <i32 3, i32 0, i32 1, i32 2, i32 7, i32 4, i32 5, i32 6>
 ```
 
 The second lane (mask bit 4 - 7) is essentially just copying zeros into destination vector. -->
@@ -74,6 +74,9 @@ As we all know, compilation efficiency matters, and C++ is known for its slow co
 # Resources
 
 1. Parabix shufflevector project introduction: http://parabix.costar.sfu.ca/wiki/ShuffleVector
-1. Parabix shufflevector pattern recognition library introduction:  http://parabix.costar.sfu.ca/wiki/ShufflePatternLibrary#StandardPatternExamples
-1. Project from previous students:
-https://github.com/laishzh/LLVM_ShuffleVector_Optimizer
+2. Parabix shufflevector pattern recognition library introduction:  http://parabix.costar.sfu.ca/wiki/ShufflePatternLibrary#StandardPatternExamples
+3. LLVM shufflevector document: http://llvm.org/docs/LangRef.html#shufflevector-instruction
+4. LLVM ShuffleVectorInst class reference: http://llvm.org/doxygen/classllvm_1_1ShuffleVectorInst.html
+5. LLVM ShuffleVectorInst class source code: http://llvm.org/doxygen/Instructions_8cpp_source.html
+6. Project from previous students: https://github.com/laishzh/LLVM_ShuffleVector_Optimizer
+
