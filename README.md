@@ -66,6 +66,42 @@ shufflevector <8 x i32> %x, <8 x i32> zeroinitializer, <8 x i32> <i32 3, i32 0, 
 
 The second lane (mask bit 4 - 7) is essentially just copying zeros into destination vector. -->
 
+## Example 
+
+Examples are taken from The ShuffleVector Project wiki page on Parabix website.
+
+Sometimes, the shuffle mask pattern for a shuffle vector could be just a byte swap:
+
+```
+%v3 = shufflevector <8 x i8> %v1, <8 x i8> undef,
+                    <8 x i32> <i32 1, i32 0, i32 3, i32 2, i32 5, i32 4, i32 7, i32 6>  ; yields <8 x i8>
+```
+
+This could be transformed to 
+
+```
+%t0 = bitcast %v1 to i64 @llvm.bswap.i64(i64 %t0)
+```
+
+Here, `llvm.bswap.i64` is an intrinsic that returns an i64 value that has the high and low byte of the input swapped. 
+
+```
+%v3 = shufflevector <8 x i4> %v1, <8 x i4> undef,
+              <8 x i32> <i32 1, i32 2, i32 3, i32 0, i32 5, i32 6, i32 7, i32 4>  ; yields <8 x i8>
+```
+
+Shuffles on 4-bit fields are generally not supported by SIMD instruction sets, but this one can be implemented by transforming to 16-bit vector shift operations. 
+
+```
+%t0 = bitcast %v1 to <2 x i16>
+%t1 = shl %t0, <2 x i16> <i16 12, i16 12> 
+%t2 = lshr %t0, <2 x i16> <i16 4, i16 4> 
+%v3 = xor %t1, %t2
+```
+
+In this case, we use shift instructions to optimize the performance. 
+
+
 ## Optimize Pass with SIMD Technology
 
 As we all know, compilation efficiency matters, and C++ is known for its slow compilation. Thus, we want to create this pass that could potentially use SIMD operations by using llvm `SmallVector`s when performing pattern recognitions.
