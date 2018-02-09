@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Shufflevector instruction of LLVM IR provides powerful expressiveness. However, with such expressiveness, it is hard to write a generalized and efficient algorithm for the backend. Meanwhile, in many cases, a shufflevector instruction can be replaced with another instrution that is efficiently implemented by the backend. In this project, we are aiming to tackle this problem of recognizing these cases and translate shufflevector to a more efficient instruction.
+Shufflevector instruction of LLVM IR provides powerful expressiveness. However, with such expressiveness, it is hard to write a generalized and efficient algorithm for the backend. Meanwhile, in many cases, a shufflevector instruction can be replaced with another instrution that is efficiently implemented by the backend. In this project, we are aiming to tackle this problem of recognizing these cases and translate shufflevector to more efficient instructions by creating an optimized engine with a systematic approach. We also want to adopt lane detection when doing pattern recognition.
 
 ## Patterns
 
@@ -56,16 +56,6 @@ In this example, the instruction is essentially performing two rotate operations
 
 We want to incorporate this idea into all pattern recognitions.
 
-<!-- ## Zero Initializer or Undefined Second Vector Input
-
-Consider this example:
-
-```llvm
-shufflevector <8 x i32> %x, <8 x i32> zeroinitializer, <8 x i32> <i32 3, i32 0, i32 1, i32 2, i32 7, i32 4, i32 5, i32 6>
-```
-
-The second lane (mask bit 4 - 7) is essentially just copying zeros into destination vector. -->
-
 ## Example 
 
 Examples are taken from The ShuffleVector Project wiki page on Parabix website.
@@ -104,7 +94,7 @@ In this case, we use shift instructions to optimize the performance.
 
 ## Optimize Pass with SIMD Technology
 
-As we all know, compilation efficiency matters, and C++ is known for its slow compilation. Thus, we want to create this pass that could potentially use SIMD operations by using llvm `SmallVector`s when performing pattern recognitions.
+As we all know, compilation efficiency matters, and C++ is known for its slow compilation. Thus, we want to create this pass that could potentially use SIMD operations to achieve high efficiency by using llvm `SmallVector`s when performing pattern recognitions.
 
 
 # Resources
