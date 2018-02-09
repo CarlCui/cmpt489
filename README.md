@@ -72,27 +72,27 @@ Examples are taken from The ShuffleVector Project wiki page on Parabix website.
 
 Sometimes, the shuffle mask pattern for a shuffle vector could be just a byte swap:
 
-```
+```llvm
 %v3 = shufflevector <8 x i8> %v1, <8 x i8> undef,
                     <8 x i32> <i32 1, i32 0, i32 3, i32 2, i32 5, i32 4, i32 7, i32 6>  ; yields <8 x i8>
 ```
 
 This could be transformed to 
 
-```
+```llvm
 %t0 = bitcast %v1 to i64 @llvm.bswap.i64(i64 %t0)
 ```
 
 Here, `llvm.bswap.i64` is an intrinsic that returns an i64 value that has the high and low byte of the input swapped. 
 
-```
+```llvm
 %v3 = shufflevector <8 x i4> %v1, <8 x i4> undef,
               <8 x i32> <i32 1, i32 2, i32 3, i32 0, i32 5, i32 6, i32 7, i32 4>  ; yields <8 x i8>
 ```
 
 Shuffles on 4-bit fields are generally not supported by SIMD instruction sets, but this one can be implemented by transforming to 16-bit vector shift operations. 
 
-```
+```llvm
 %t0 = bitcast %v1 to <2 x i16>
 %t1 = shl %t0, <2 x i16> <i16 12, i16 12> 
 %t2 = lshr %t0, <2 x i16> <i16 4, i16 4> 
