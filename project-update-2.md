@@ -172,6 +172,7 @@ Consider the following examples. Suppose we want to detect lane of width 2 (1 if
 Example 1:
 
 Mask:  [0,3,1,2] ([00,11,01,10])
+
 Index: [0,1,2,3] ([00,01,10,11])
 
 XOR:   [0,2,3,1]
@@ -181,6 +182,7 @@ In this case, second and third element is larger than the lane width 1. Thus, no
 Example 2:
 
 Mask: [1,0,3,2] ([01,00,11,10])
+
 Index:[0,1,2,3] ([00,01,10,11])
 
 XOR:  [1,1,1,1]
