@@ -78,7 +78,7 @@ virtual bool matches(ShuffleVectorInst *inst, CommonVectors commonVectors) = 0;
 Current function declaration:
 
 ```cpp
-
+virtual PatternMetadata *matches(ShuffleVectorInst *inst, CommonVectors commonVectors) = 0;
 ```
 
 Then in the pass, if the function returns a `PatternMetadata` object, we firstly try to do optimization. If no optimization can be done for that pattern, we simply attach the metadata to the instruction.
