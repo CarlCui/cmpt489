@@ -156,7 +156,7 @@ entry:
 }
 ```
 
-However, it's difficult to find difference on various aspects like time overhead, CPU cycles, number of instructions, . On the one hand, only . On the other hand, our optimization may not be that effective. One work around could be, directly look at assembly code. 
+However, it's difficult to find difference on various aspects like time overhead, CPU cycles, number of instructions etc. As for the reason, on the one hand, changes in performance is insignificant for only one function. On the other hand, our optimization may not be that effective. One work around could be, directly look at assembly code. 
 
 ```asm
 merge:                                  # @merge
@@ -172,7 +172,7 @@ merge:                                  # @merge
 	.cfi_endproc
 ```
 
-Actually, the "optimized" version has more instructions
+Actually, the "optimized" version has more instructions. The reason is there is already some pack/unpack instructions that doing this quite well. 
 
 ```asm
 merge:                                  # @merge
@@ -197,7 +197,7 @@ merge:                                  # @merge
 	.cfi_endproc
 ```
 
-Then, we tried to change vector type to `i5` which is usually not directly supported by most architecture. Hopefully, the results may be different. 
+But then we tried to change vector type to `i5` which is usually not directly supported by most architecture and instructions. Hopefully, the results may be different. 
 
 ```llvm
 define <8 x i5> @merge(<4 x i5> %a, <4 x i5> %b) {
@@ -206,6 +206,8 @@ entry:
   ret <8 x i5> %t
 }
 ```
+
+The amount of instructions increase rapidly, as we expected. 
 
 ```asm
 merge:                                  # @merge
