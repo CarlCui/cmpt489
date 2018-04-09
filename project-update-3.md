@@ -129,3 +129,167 @@ define i32 @main() {
 !6 = !{i32 4}
 
 ```
+
+## Case Study: Optimize Merge Pattern
+
+Now let's look at an example about optimizing LLVM IR code. We takes merge pattern as an example because it's a little complexed and there is no previous works on it.
+
+```llvm
+define <8 x i32> @merge(<4 x i32> %a, <4 x i32> %b) {
+entry:
+  %t = shufflevector <4 x i32> %a, <4 x i32> %b, <8 x i32> <i32 0, i32 4, i32 1, i32 5, i32 2, i32 6, i32 3, i32 7>
+  ret <8 x i32> %t
+}
+```
+
+We try to replace original `shufflevector` instruction with other operations like shift and bit operations, as the below shows.  
+
+```llvm
+define <8 x i32> @merge(<4 x i32> %a, <4 x i32> %b) {
+entry:
+    %0 = zext <4 x i32> %a to <4 x i64>
+    %1 = zext <4 x i32> %b to <4 x i64>
+    %2 = shl <4 x i64> %0, <i64 32, i64 32, i64 32, i64 32> 
+    %3 = or <4 x i64> %1, %2
+    %4 = bitcast <4 x i64> %3 to <8 x i32>
+    ret <8 x i32> %4
+}
+```
+
+However, it's difficult to find difference on various aspects like time overhead, CPU cycles, number of instructions, . On the one hand, only . On the other hand, our optimization may not be that effective. One work around could be, directly look at assembly code. 
+
+```asm
+merge:                                  # @merge
+	.cfi_startproc
+# BB#0:                                 # %entry
+	movdqa	%xmm0, %xmm2
+	punpckldq	%xmm1, %xmm0    # xmm0 = xmm0[0],xmm1[0],xmm0[1],xmm1[1]
+	punpckhdq	%xmm1, %xmm2    # xmm2 = xmm2[2],xmm1[2],xmm2[3],xmm1[3]
+	movdqa	%xmm2, %xmm1
+	retq
+.Lfunc_end0:
+	.size	merge, .Lfunc_end0-merge
+	.cfi_endproc
+```
+
+Actually, the "optimized" version has more instructions
+
+```asm
+merge:                                  # @merge
+	.cfi_startproc
+# BB#0:                                 # %entry
+	xorps	%xmm2, %xmm2
+	movaps	%xmm0, %xmm3
+	punpckldq	%xmm2, %xmm3    # xmm3 = xmm3[0],xmm2[0],xmm3[1],xmm2[1]
+	punpckhdq	%xmm2, %xmm0    # xmm0 = xmm0[2],xmm2[2],xmm0[3],xmm2[3]
+	movaps	%xmm1, %xmm4
+	punpckhdq	%xmm2, %xmm4    # xmm4 = xmm4[2],xmm2[2],xmm4[3],xmm2[3]
+	punpckldq	%xmm2, %xmm1    # xmm1 = xmm1[0],xmm2[0],xmm1[1],xmm2[1]
+	psllq	$32, %xmm0
+	psllq	$32, %xmm3
+	por	%xmm3, %xmm1
+	por	%xmm0, %xmm4
+	movaps	%xmm1, %xmm0
+	movaps	%xmm4, %xmm1
+	retq
+.Lfunc_end0:
+	.size	merge, .Lfunc_end0-merge
+	.cfi_endproc
+```
+
+Then, we tried to change vector type to `i5` which is usually not directly supported by most architecture. Hopefully, the results may be different. 
+
+```llvm
+define <8 x i5> @merge(<4 x i5> %a, <4 x i5> %b) {
+entry:
+  %t = shufflevector <4 x i5> %a, <4 x i5> %b, <8 x i32> <i32 0, i32 4, i32 1, i32 5, i32 2, i32 6, i32 3, i32 7>
+  ret <8 x i5> %t
+}
+```
+
+```asm
+merge:                                  # @merge
+	.cfi_startproc
+# BB#0:                                 # %entry
+	pshuflw	$232, %xmm1, %xmm1      # xmm1 = xmm1[0,2,2,3,4,5,6,7]
+	pshufhw	$232, %xmm1, %xmm1      # xmm1 = xmm1[0,1,2,3,4,6,6,7]
+	pshufd	$232, %xmm1, %xmm1      # xmm1 = xmm1[0,2,2,3]
+	pshuflw	$232, %xmm0, %xmm0      # xmm0 = xmm0[0,2,2,3,4,5,6,7]
+	pshufhw	$232, %xmm0, %xmm0      # xmm0 = xmm0[0,1,2,3,4,6,6,7]
+	pshufd	$232, %xmm0, %xmm0      # xmm0 = xmm0[0,2,2,3]
+	punpcklwd	%xmm1, %xmm0    # xmm0 = xmm0[0],xmm1[0],xmm0[1],xmm1[1],xmm0[2],xmm1[2],xmm0[3],xmm1[3]
+	retq
+.Lfunc_end0:
+	.size	merge, .Lfunc_end0-merge
+	.cfi_endproc
+```
+
+
+```asm
+merge:                                  # @merge
+	.cfi_startproc
+# BB#0:                                 # %entry
+	movdqa	.LCPI0_0(%rip), %xmm2   # xmm2 = [31,31,31,31]
+	pand	%xmm2, %xmm0
+	pand	%xmm2, %xmm1
+	pslld	$5, %xmm0
+	por	%xmm1, %xmm0
+	movd	%xmm0, %eax
+	andl	$1023, %eax             # imm = 0x3FF
+	movw	%ax, -8(%rsp)
+	pshufd	$231, %xmm0, %xmm1      # xmm1 = xmm0[3,1,2,3]
+	movd	%xmm1, %eax
+	andl	$1023, %eax             # imm = 0x3FF
+	movw	%ax, -2(%rsp)
+	pshufd	$78, %xmm0, %xmm1       # xmm1 = xmm0[2,3,0,1]
+	movd	%xmm1, %eax
+	andl	$1023, %eax             # imm = 0x3FF
+	movw	%ax, -4(%rsp)
+	pshufd	$229, %xmm0, %xmm0      # xmm0 = xmm0[1,1,2,3]
+	movd	%xmm0, %eax
+	andl	$1023, %eax             # imm = 0x3FF
+	movw	%ax, -6(%rsp)
+	movl	-8(%rsp), %eax
+	movq	%rax, %rcx
+	shrq	$35, %rcx
+	andl	$31, %ecx
+	movd	%ecx, %xmm0
+	movl	%eax, %ecx
+	shrl	$15, %ecx
+	andl	$31, %ecx
+	movd	%ecx, %xmm1
+	punpcklwd	%xmm0, %xmm1    # xmm1 = xmm1[0],xmm0[0],xmm1[1],xmm0[1],xmm1[2],xmm0[2],xmm1[3],xmm0[3]
+	movl	%eax, %ecx
+	shrl	$25, %ecx
+	andl	$31, %ecx
+	movd	%ecx, %xmm0
+	movl	%eax, %ecx
+	shrl	$5, %ecx
+	andl	$31, %ecx
+	movd	%ecx, %xmm2
+	punpcklwd	%xmm0, %xmm2    # xmm2 = xmm2[0],xmm0[0],xmm2[1],xmm0[1],xmm2[2],xmm0[2],xmm2[3],xmm0[3]
+	punpcklwd	%xmm1, %xmm2    # xmm2 = xmm2[0],xmm1[0],xmm2[1],xmm1[1],xmm2[2],xmm1[2],xmm2[3],xmm1[3]
+	movq	%rax, %rcx
+	shrq	$30, %rcx
+	andl	$31, %ecx
+	movd	%ecx, %xmm0
+	movl	%eax, %ecx
+	shrl	$10, %ecx
+	andl	$31, %ecx
+	movd	%ecx, %xmm1
+	punpcklwd	%xmm0, %xmm1    # xmm1 = xmm1[0],xmm0[0],xmm1[1],xmm0[1],xmm1[2],xmm0[2],xmm1[3],xmm0[3]
+	movl	%eax, %ecx
+	andl	$31, %ecx
+	movd	%ecx, %xmm0
+	shrl	$20, %eax
+	andl	$31, %eax
+	movd	%eax, %xmm3
+	punpcklwd	%xmm3, %xmm0    # xmm0 = xmm0[0],xmm3[0],xmm0[1],xmm3[1],xmm0[2],xmm3[2],xmm0[3],xmm3[3]
+	punpcklwd	%xmm1, %xmm0    # xmm0 = xmm0[0],xmm1[0],xmm0[1],xmm1[1],xmm0[2],xmm1[2],xmm0[3],xmm1[3]
+	punpcklwd	%xmm2, %xmm0    # xmm0 = xmm0[0],xmm2[0],xmm0[1],xmm2[1],xmm0[2],xmm2[2],xmm0[3],xmm2[3]
+	retq
+.Lfunc_end0:
+	.size	merge, .Lfunc_end0-merge
+	.cfi_endproc
+```
+
